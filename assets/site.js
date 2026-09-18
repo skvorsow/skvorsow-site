@@ -54,6 +54,7 @@ const finishImageLoad = image => {
   const frame = imageFrame(image);
   image.classList.add('is-loaded');
   frame?.classList.remove('is-image-loading', 'is-image-error');
+  frame?.style.removeProperty('--image-placeholder');
 };
 
 const failImageLoad = image => {
