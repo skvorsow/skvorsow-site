@@ -46,6 +46,7 @@ const beginImageLoad = image => {
   const placeholder = image.dataset.placeholder;
   frame.classList.add('image-load-frame', 'is-image-loading');
   frame.classList.remove('is-image-error');
+  frame.style.setProperty('--image-position', getComputedStyle(image).objectPosition || '50% 50%');
   if (placeholder) frame.style.setProperty('--image-placeholder', `url("${placeholder.replace(/"/g, '%22')}")`);
   image.classList.remove('is-loaded');
 };
@@ -55,6 +56,7 @@ const finishImageLoad = image => {
   image.classList.add('is-loaded');
   frame?.classList.remove('is-image-loading', 'is-image-error');
   frame?.style.removeProperty('--image-placeholder');
+  frame?.style.removeProperty('--image-position');
 };
 
 const failImageLoad = image => {

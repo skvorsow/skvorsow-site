@@ -172,7 +172,7 @@ body.home{min-height:100svh;display:flex;flex-direction:column}.home .blank-home
 /* Progressive Cloudinary images: reserve the real layout, show a tiny blurred
    preview immediately, and make gallery changes visibly responsive. */
 .image-load-frame{position:relative}
-.image-load-frame.is-image-loading{background-color:#f1f1ef;background-image:var(--image-placeholder);background-repeat:no-repeat;background-position:center;background-size:contain}
+.image-load-frame.is-image-loading{background-color:#f1f1ef;background-image:var(--image-placeholder);background-repeat:no-repeat;background-position:var(--image-position,50% 50%);background-size:contain}
 .has-progressive-images .image-load-frame>.progressive-image{transition:opacity .22s ease}
 .has-progressive-images .image-load-frame.is-image-loading>.progressive-image{opacity:0}
 .image-load-frame.is-image-loading::after{content:"";position:absolute;left:50%;top:50%;z-index:2;width:24px;height:24px;margin:-14px 0 0 -14px;border:2px solid rgba(20,20,20,.22);border-top-color:var(--accent);border-radius:50%;animation:image-loader-spin .75s linear infinite;pointer-events:none}
