@@ -40,14 +40,28 @@ const imageFrame = image => image.closest(
   '.archive-image, .artwork-main-image, .artwork-additional-image, .artwork-image, .mobile-project-image, .event-preview, .project-preview'
 ) || image.parentElement;
 
-const beginImageLoad = image => {
+const beginImageLoad = (image, placeholderOverride) => {
   const frame = imageFrame(image);
   if (!frame) return;
-  const placeholder = image.dataset.placeholder;
+  const placeholder = placeholderOverride || image.dataset.placeholder;
   frame.classList.add('image-load-frame', 'is-image-loading');
   frame.classList.remove('is-image-error');
   frame.style.setProperty('--image-position', getComputedStyle(image).objectPosition || '50% 50%');
-  if (placeholder) frame.style.setProperty('--image-placeholder', `url("${placeholder.replace(/"/g, '%22')}")`);
+  frame.querySelector('.image-placeholder-preview')?.remove();
+  if (placeholder) {
+    const preview = image.cloneNode(false);
+    preview.removeAttribute('src');
+    preview.removeAttribute('srcset');
+    preview.removeAttribute('sizes');
+    preview.removeAttribute('loading');
+    preview.removeAttribute('fetchpriority');
+    preview.removeAttribute('id');
+    preview.className = 'image-placeholder-preview';
+    preview.alt = '';
+    preview.setAttribute('aria-hidden', 'true');
+    preview.src = placeholder;
+    frame.insertBefore(preview, image);
+  }
   image.classList.remove('is-loaded');
 };
 
@@ -55,7 +69,7 @@ const finishImageLoad = image => {
   const frame = imageFrame(image);
   image.classList.add('is-loaded');
   frame?.classList.remove('is-image-loading', 'is-image-error');
-  frame?.style.removeProperty('--image-placeholder');
+  frame?.querySelector('.image-placeholder-preview')?.remove();
   frame?.style.removeProperty('--image-position');
 };
 
@@ -127,11 +141,7 @@ document.querySelectorAll('.work-images.multiple').forEach((gallery) => {
     button.addEventListener('focus', prepare, { once: true });
     button.addEventListener('click', () => {
       if (button.getAttribute('aria-pressed') === 'true') return;
-      beginImageLoad(mainImage);
-      const frame = imageFrame(mainImage);
-      if (source['data-placeholder']) {
-        frame?.style.setProperty('--image-placeholder', `url("${source['data-placeholder'].replace(/"/g, '%22')}")`);
-      }
+      beginImageLoad(mainImage, source['data-placeholder']);
       thumbnails.querySelectorAll('.gallery-thumbnail').forEach(item => item.setAttribute('aria-pressed', item === button ? 'true' : 'false'));
 
       const replacement = prepare();
