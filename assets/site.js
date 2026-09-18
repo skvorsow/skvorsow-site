@@ -31,6 +31,47 @@ window.addEventListener('pageshow', () => {
   document.querySelectorAll('.is-previewing').forEach(row => row.classList.remove('is-previewing'));
 });
 
+// Keep image boxes informative while Cloudinary selects and downloads the
+// appropriate responsive source. The tiny blurred image is deliberately a
+// background, so it never competes with the final image in layout.
+document.documentElement.classList.add('has-progressive-images');
+
+const imageFrame = image => image.closest(
+  '.archive-image, .artwork-main-image, .artwork-additional-image, .artwork-image, .mobile-project-image, .event-preview, .project-preview'
+) || image.parentElement;
+
+const beginImageLoad = image => {
+  const frame = imageFrame(image);
+  if (!frame) return;
+  const placeholder = image.dataset.placeholder;
+  frame.classList.add('image-load-frame', 'is-image-loading');
+  frame.classList.remove('is-image-error');
+  if (placeholder) frame.style.setProperty('--image-placeholder', `url("${placeholder.replace(/"/g, '%22')}")`);
+  image.classList.remove('is-loaded');
+};
+
+const finishImageLoad = image => {
+  const frame = imageFrame(image);
+  image.classList.add('is-loaded');
+  frame?.classList.remove('is-image-loading', 'is-image-error');
+};
+
+const failImageLoad = image => {
+  const frame = imageFrame(image);
+  frame?.classList.remove('is-image-loading');
+  frame?.classList.add('is-image-error');
+};
+
+document.querySelectorAll('img').forEach(image => {
+  if (image.complete && image.naturalWidth > 0) {
+    finishImageLoad(image);
+    return;
+  }
+  beginImageLoad(image);
+  image.addEventListener('load', () => finishImageLoad(image), { once: true });
+  image.addEventListener('error', () => failImageLoad(image), { once: true });
+});
+
 // Project pages show one clear artwork view at a time, with every view —
 // including the cover — available below it as a thumbnail.
 document.querySelectorAll('.work-images.multiple').forEach((gallery) => {
@@ -51,7 +92,7 @@ document.querySelectorAll('.work-images.multiple').forEach((gallery) => {
   links.forEach((link, index) => {
     const sourceImage = link.querySelector('img');
     if (!sourceImage) return;
-    const source = Object.fromEntries(['src', 'srcset', 'width', 'height', 'alt'].map(attribute =>
+    const source = Object.fromEntries(['src', 'srcset', 'width', 'height', 'alt', 'data-placeholder'].map(attribute =>
       [attribute, sourceImage.getAttribute(attribute)]
     ));
     const sourceHref = link.href;
@@ -69,16 +110,44 @@ document.querySelectorAll('.work-images.multiple').forEach((gallery) => {
     thumbnailImage.removeAttribute('fetchpriority');
     button.append(thumbnailImage);
 
+    let preparedImage;
+    const prepare = () => {
+      if (preparedImage) return preparedImage;
+      preparedImage = new Image();
+      preparedImage.sizes = '(max-width: 760px) 90vw, 70vw';
+      if (source.srcset) preparedImage.srcset = source.srcset;
+      preparedImage.src = source.src;
+      return preparedImage;
+    };
+
+    button.addEventListener('pointerenter', prepare, { once: true });
+    button.addEventListener('focus', prepare, { once: true });
     button.addEventListener('click', () => {
-      ['src', 'srcset', 'width', 'height', 'alt'].forEach(attribute => {
-        const value = source[attribute];
-        value === null ? mainImage.removeAttribute(attribute) : mainImage.setAttribute(attribute, value);
-      });
-      mainImage.sizes = '(max-width: 760px) 90vw, 70vw';
-      mainImage.loading = 'eager';
-      mainLink.href = sourceHref;
-      mainLink.setAttribute('aria-label', link.getAttribute('aria-label') || sourceImage.alt);
+      if (button.getAttribute('aria-pressed') === 'true') return;
+      beginImageLoad(mainImage);
+      const frame = imageFrame(mainImage);
+      if (source['data-placeholder']) {
+        frame?.style.setProperty('--image-placeholder', `url("${source['data-placeholder'].replace(/"/g, '%22')}")`);
+      }
       thumbnails.querySelectorAll('.gallery-thumbnail').forEach(item => item.setAttribute('aria-pressed', item === button ? 'true' : 'false'));
+
+      const replacement = prepare();
+      const reveal = () => {
+        ['src', 'srcset', 'width', 'height', 'alt', 'data-placeholder'].forEach(attribute => {
+          const value = source[attribute];
+          value === null ? mainImage.removeAttribute(attribute) : mainImage.setAttribute(attribute, value);
+        });
+        mainImage.sizes = '(max-width: 760px) 90vw, 70vw';
+        mainImage.loading = 'eager';
+        mainLink.href = sourceHref;
+        mainLink.setAttribute('aria-label', link.getAttribute('aria-label') || sourceImage.alt);
+        if (mainImage.complete && mainImage.naturalWidth > 0) finishImageLoad(mainImage);
+        else mainImage.addEventListener('load', () => finishImageLoad(mainImage), { once: true });
+      };
+      replacement.complete && replacement.naturalWidth > 0
+        ? reveal()
+        : replacement.addEventListener('load', reveal, { once: true });
+      replacement.addEventListener('error', () => failImageLoad(mainImage), { once: true });
     });
 
     thumbnails.append(button);
